@@ -1,0 +1,282 @@
+
+// =========================================================
+// FRONT DE LA TIENDA
+// El front NUNCA habla con Supabase: todo se le pide a nuestra API con fetch.
+// Las partes marcadas con TODO las completamos en la Clase 3.
+// =========================================================
+
+// ---------- ESTADO ----------
+const catalogo = {};  // los productos que ya vinieron de la API, por id (para nombres y precios del carrito)
+let carrito = JSON.parse(localStorage.getItem('carrito')) || [];   // [ { producto_id, cantidad } ]
+let token = localStorage.getItem('token');                         // lo guardamos al hacer login
+let usuarioEmail = localStorage.getItem('email');
+let categoriaActual = null;
+
+
+// =========================================================
+// CATALOGO
+// =========================================================
+
+// Pide los productos a la API y los dibuja.
+// Si categoriaId tiene valor, pide solo los de esa categoria: /productos?categoria=2
+async function cargarProductos(categoriaId) {
+ categoriaActual = categoriaId || null; // para marcar el botón activo
+ let url = '/productos';
+ if (categoriaId) url += '?categoria=' + categoriaId;
+ const res = await fetch(url);
+ if (!res.ok) return mostrarMensaje(await res.text(), 'error');
+ const productos = await res.json();
+ pintarProductos(productos); 
+ pintarCategoriaActiva(); 
+}
+
+
+// Dibuja las tarjetas con el nuevo diseño aireado
+function pintarProductos(lista) {
+  const grilla = document.getElementById('productos');
+  lista.forEach(p => { catalogo[p.id] = p; });   // los recordamos para el carrito
+  pintarCarrito();
+  if (lista.length === 0) {
+    grilla.innerHTML = '<p class="vacio">No hay productos disponibles en esta categoría.</p>';
+    return;
+  }
+  grilla.innerHTML = '';
+  lista.forEach(p => {
+    const sinStock = p.stock < 1;
+    const categoriaNombre = p.categorias ? p.categorias.nombre : '';
+    
+    grilla.innerHTML += `
+      <article class="tarjeta">
+        <div class="tarjeta-imagen-wrapper">
+          ${categoriaNombre ? `<span class="tarjeta-badge">${categoriaNombre}</span>` : ''}
+          <img src="${p.imagen_url || ''}" alt="${p.nombre}">
+        </div>
+        <div class="info">
+          <h3>${p.nombre}</h3>
+          <p class="descripcion">${p.descripcion || ''}</p>
+          <div class="tarjeta-footer-datos">
+            <span class="precio">$${p.precio}</span>
+            <span class="stock">${sinStock ? 'Sin stock' : 'Stock: ' + p.stock}</span>
+          </div>
+          <button class="btn btn-principal" onclick="agregar(${p.id})" ${sinStock ? 'disabled' : ''}>
+            ${sinStock ? 'Sin stock' : 'Agregar al carrito'}
+          </button>
+        </div>
+      </article>`;
+  });
+}
+
+// Pide las categorias y arma los botones del filtro
+async function cargarCategorias() {
+  const res = await fetch('/categorias');
+  if (!res.ok) return;
+  const categorias = await res.json();
+  const nav = document.getElementById('categorias');
+  nav.innerHTML = '<button data-id="" onclick="cargarProductos()">Todos</button>';
+  categorias.forEach(c => {
+    nav.innerHTML += `<button data-id="${c.id}" onclick="cargarProductos(${c.id})">${c.nombre}</button>`;
+  });
+  pintarCategoriaActiva();
+}
+
+function pintarCategoriaActiva() {
+  document.querySelectorAll('#categorias button').forEach(b => {
+    const id = b.dataset.id ? Number(b.dataset.id) : null;
+    b.classList.toggle('activa', id === categoriaActual);
+  });
+}
+
+
+// =========================================================
+// CARRITO (vive en el navegador: no toca la base hasta comprar)
+// =========================================================
+
+function guardarCarrito() {
+  localStorage.setItem('carrito', JSON.stringify(carrito));
+  pintarCarrito();
+}
+
+function agregar(id) {
+  const item = carrito.find(i => i.producto_id === id);
+  if (item) item.cantidad++;
+  else carrito.push({ producto_id: id, cantidad: 1 });
+  guardarCarrito();
+  mostrarMensaje('Producto agregado al carrito', 'ok');
+}
+
+function cambiarCantidad(id, cambio) {
+  const item = carrito.find(i => i.producto_id === id);
+  if (!item) return;
+  item.cantidad += cambio;
+  if (item.cantidad < 1) carrito = carrito.filter(i => i.producto_id !== id);
+  guardarCarrito();
+}
+
+function pintarCarrito() {
+  const lista = document.getElementById('carrito-lista');
+  let total = 0;
+  let unidades = 0;
+  lista.innerHTML = '';
+  carrito.forEach(item => {
+    const p = catalogo[item.producto_id];
+    const nombre = p ? p.nombre : 'Producto ' + item.producto_id;
+    const subtotal = p ? p.precio * item.cantidad : 0;
+    total += subtotal;
+    unidades += item.cantidad;
+    lista.innerHTML += `
+      <li>
+        <span>${nombre}<br><small style="color:var(--suave);">$${subtotal}</small></span>
+        <span class="cantidad">
+          <button onclick="cambiarCantidad(${item.producto_id}, -1)">−</button>
+          ${item.cantidad}
+          <button onclick="cambiarCantidad(${item.producto_id}, 1)">+</button>
+        </span>
+      </li>`;
+  });
+  if (carrito.length === 0) lista.innerHTML = '<li style="justify-content:center; color:var(--suave); padding:30px 0;">Tu carrito está vacío</li>';
+  document.getElementById('carrito-total').textContent = '$' + total;
+  document.getElementById('contador').textContent = unidades;
+}
+
+function alternarCarrito() {
+  document.getElementById('carrito').classList.toggle('oculto');
+}
+
+
+// =========================================================
+// USUARIOS: registro, login y salida
+// =========================================================
+
+async function registrar(evento) {
+  evento.preventDefault();
+
+  const nombre = document.getElementById('reg-nombre').value;
+  const email = document.getElementById('reg-email').value;
+  const password = document.getElementById('reg-password').value;
+
+  const res = await fetch('/registro', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ nombre, email, password })
+  });
+
+  if (res.status === 201) {
+    mostrarMensaje('Cuenta creada. Ahora ingresá con tu email y contraseña.', 'ok');
+    mostrarRegistro(false);                       // pasa al login
+    document.getElementById('login-email').value = email;
+  } else {
+    mostrarMensaje(await res.text(), 'error');
+  }
+}
+
+async function iniciarSesion(evento) {
+  evento.preventDefault();
+
+  const email = document.getElementById('login-email').value;
+  const password = document.getElementById('login-password').value;
+
+  const res = await fetch('/login', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ email, password })
+  });
+
+  if (!res.ok) return mostrarMensaje(await res.text(), 'error');
+
+  const datos = await res.json();          // { token: "eyJhb..." }
+  token = datos.token;
+  usuarioEmail = email;
+  localStorage.setItem('token', token);
+  localStorage.setItem('email', email);
+  cerrarModal();
+  actualizarSesion();                      // muestra el email y el botón Salir
+  mostrarMensaje('¡Hola! Ya podés comprar.', 'ok');
+}
+
+function cerrarSesion() {
+  token = null;
+  usuarioEmail = null;
+  localStorage.removeItem('token');
+  localStorage.removeItem('email');
+  actualizarSesion();
+  mostrarMensaje('Cerraste sesión', 'ok');
+}
+
+function actualizarSesion() {
+  const logueado = Boolean(token);
+  document.getElementById('saludo').textContent = logueado ? usuarioEmail : '';
+  document.getElementById('btn-ingresar').classList.toggle('oculto', logueado);
+  document.getElementById('btn-salir').classList.toggle('oculto', !logueado);
+}
+
+
+// =========================================================
+// COMPRA
+// =========================================================
+
+async function comprar() {
+  if (carrito.length === 0) return mostrarMensaje('El carrito está vacío', 'error');
+
+  if (!token) {                              // sin sesión: primero ingresar
+    abrirModal();
+    return mostrarMensaje('Ingresá para poder comprar', 'error');
+  }
+
+  const res = await fetch('/pedidos', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': 'Bearer ' + token                  // con un espacio después de Bearer
+    },
+    body: JSON.stringify({ items: carrito })
+  });
+
+  if (res.status === 201) {
+    const pedido = await res.json();
+    carrito = [];
+    guardarCarrito();
+    alternarCarrito();
+    mostrarMensaje('¡Compra realizada! Pedido #' + pedido.id +
+                   ' por $' + pedido.total, 'ok');
+    cargarProductos(categoriaActual);         // para ver el stock nuevo
+  } else if (res.status === 401) {
+    cerrarSesion();
+    abrirModal();
+    mostrarMensaje('Tu sesión venció. Ingresá de nuevo.', 'error');
+  } else {
+    mostrarMensaje(await res.text(), 'error');
+  }
+}
+
+
+// =========================================================
+// AYUDANTES DE PANTALLA
+// =========================================================
+
+function mostrarMensaje(texto, tipo) {
+  const caja = document.getElementById('mensaje');
+  caja.textContent = texto;
+  caja.className = 'mensaje ' + tipo;
+  clearTimeout(caja.temporizador);
+  caja.temporizador = setTimeout(() => caja.classList.add('oculto'), 4000);
+}
+
+function abrirModal() {
+  document.getElementById('modal').classList.remove('oculto');
+}
+
+function cerrarModal() {
+  document.getElementById('modal').classList.add('oculto');
+}
+
+function mostrarRegistro(mostrar) {
+  document.getElementById('form-registro').classList.toggle('oculto', !mostrar);
+  document.getElementById('form-login').classList.toggle('oculto', mostrar);
+}
+
+
+// ---------- AL ABRIR LA PAGINA ----------
+cargarCategorias();
+cargarProductos();
+pintarCarrito();
+actualizarSesion();

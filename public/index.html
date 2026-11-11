@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Café House | Tienda de Café de Especialidad</title>
+  <link rel="stylesheet" href="estilos.css">
+  <!-- Tipografía moderna Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+</head>
+<body>
+
+  <!-- Barra de navegación principal -->
+  <header class="barra">
+    <div class="barra-contenedor">
+      <h1 class="marca">Café <span>House</span></h1>
+      <div class="sesion">
+        <span id="saludo"></span>
+        <button id="btn-ingresar" class="btn btn-claro" onclick="abrirModal()">Mi cuenta</button>
+        <button id="btn-salir" class="btn btn-claro oculto" onclick="cerrarSesion()">Salir</button>
+        <button class="btn btn-carrito" onclick="alternarCarrito()">
+          🛒 Carrito <span id="contador" class="contador">0</span>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- Banner Hero de Bienvenida -->
+  <section class="hero">
+    <div class="hero-contenido">
+      <h2>Origen, aroma y pasión en cada grano</h2>
+      <p>Descubrí nuestra selección exclusiva de cafés de especialidad tostados artesanalmente.</p>
+    </div>
+  </section>
+
+  <div id="mensaje" class="mensaje oculto"></div>
+
+  <!-- Contenido principal -->
+  <main class="contenido">
+    
+    <!-- Filtros de categorías ordenados -->
+    <div class="seccion-categorias-contenedor">
+      <h3>Explorá por categoría</h3>
+      <nav id="categorias" class="categorias"></nav>
+    </div>
+    
+    <!-- Grilla de productos con espacio y jerarquía -->
+    <section id="productos" class="grilla">
+      <p class="vacio">Cargando productos...</p>
+    </section>
+  </main>
+
+  <!-- Footer -->
+  <footer class="footer">
+    <p>© 2026 Café House</p>
+  </footer>
+
+  <!-- CARRITO: panel lateral -->
+  <aside id="carrito" class="carrito oculto">
+    <div class="carrito-cabecera">
+      <h2>Tu carrito de compras</h2>
+      <button class="btn-cerrar" onclick="alternarCarrito()">✕</button>
+    </div>
+    <ul id="carrito-lista" class="carrito-lista"></ul>
+    <div class="carrito-pie">
+      <div class="carrito-total-fila">
+        <span>Total estimado:</span>
+        <strong id="carrito-total">$0</strong>
+      </div>
+      <button class="btn btn-principal btn-comprar" onclick="comprar()">Iniciar compra</button>
+    </div>
+  </aside>
+
+  <!-- LOGIN / REGISTRO: ventana modal -->
+  <div id="modal" class="modal oculto">
+    <div class="modal-caja">
+      <button class="btn-cerrar" onclick="cerrarModal()">✕</button>
+
+      <form id="form-login" onsubmit="iniciarSesion(event)">
+        <h2>¡Hola de nuevo!</h2>
+        <p class="modal-sub">Ingresá a tu cuenta para gestionar tus pedidos.</p>
+        <input id="login-email" type="email" placeholder="Correo electrónico" required>
+        <input id="login-password" type="password" placeholder="Contraseña" required>
+        <button class="btn btn-principal" type="submit">Ingresar</button>
+        <p class="cambiar">¿No tenés cuenta? <a href="#" onclick="mostrarRegistro(true)">Registrate gratis</a></p>
+      </form>
+
+      <form id="form-registro" class="oculto" onsubmit="registrar(event)">
+        <h2>Crear una cuenta</h2>
+        <p class="modal-sub">Registrate para realizar tus compras más rápido.</p>
+        <input id="reg-nombre" type="text" placeholder="Nombre y apellido" required>
+        <input id="reg-email" type="email" placeholder="Correo electrónico" required>
+        <input id="reg-password" type="password" placeholder="Contraseña (mínimo 6 caracteres)" minlength="6" required>
+        <button class="btn btn-principal" type="submit">Crear cuenta</button>
+        <p class="cambiar">¿Ya tenés cuenta? <a href="#" onclick="mostrarRegistro(false)">Ingresá acá</a></p>
+      </form>
+    </div>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>
